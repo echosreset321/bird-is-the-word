@@ -1,0 +1,20 @@
+{
+  "version": "0.1",
+  "id": "demo-001",
+  "sender": "demo-person",
+  "recipient": "local-helper",
+  "purpose": "Continue a fictional community garden planning exercise",
+  "expires_at": "2099-01-01T00:00:00.000Z",
+  "consent": {
+    "approved": true,
+    "scope": "single-handoff",
+    "allow_training": false
+  },
+  "content": [
+    {
+      "kind": "original-demo",
+      "text": "Fictional exercise: suggest three accessible ways neighbors could share garden tools. No real people or commitments are represented.",
+      "provenance": "sender-authored"
+    }
+  ]
+}
