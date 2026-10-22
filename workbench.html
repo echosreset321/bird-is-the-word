@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bird Is the Word — Change the Brief</title>
+<style>body{font:18px/1.5 system-ui;max-width:850px;margin:2rem auto;padding:0 1rem;background:#faf8f1;color:#202d2a}h1{line-height:1.15}section,article{border:1px solid #a6b8ae;border-radius:12px;padding:1rem;margin:1rem 0;background:white}label{display:block;margin-top:1rem}input,textarea,select,button{font:inherit;box-sizing:border-box;max-width:100%;padding:.55rem}input,textarea{width:100%}button{margin:.5rem .3rem .5rem 0;cursor:pointer}small{display:block}#status{font-weight:bold}pre{white-space:pre-wrap}.tag{color:#365f50}</style>
+<h1>Change the Brief</h1>
+<p>A bird can change what the flock is trying to do.</p>
+<p>Ask a question. Offer something. Challenge the purpose. Propose a small experiment. This offline workbench keeps earlier contributions visible when the brief changes.</p>
+<small>No account, AI connection, network calls, or automatic storage. Keep a JSON export before closing. Participant names are self-reported labels, not verified identities. Review exports before sharing.</small>
+<section><h2>Start a packet</h2><label>Initial brief<input id="initial" value="Help a group decide what to build together." maxlength="4000"></label><button id="start">Start new packet</button><button id="demo">Load AI collaboration example</button><p>Starting or loading replaces the current working packet. Export first to keep it.</p></section>
+<section><h2>Contribute</h2>
+<label>Participant label<input id="author" value="participant" maxlength="120"></label>
+<label>Contribution type<select id="kind"><option>question</option><option>objection</option><option>offer</option><option>proposal</option><option>brief-revision</option><option>experiment</option><option>result</option></select></label>
+<label>Responds to<select id="parent"></select></label>
+<label>Contribution<textarea id="body" rows="4" maxlength="4000"></textarea></label>
+<label>For a brief revision: what changes in the next action?<textarea id="effect" rows="2" maxlength="4000"></textarea></label>
+<button id="add">Add contribution</button><small>A brief revision must respond to an objection and name a changed action. For an experiment, state the question, observable result, and when to stop or undo. It proposes a continuation; it does not bind anyone else or establish agreement.</small>
+</section>
+<section><h2>Packet</h2><div id="timeline"></div></section>
+<section><h2>Carry it elsewhere</h2><button id="export">Export JSON</button><label>Import a previously exported packet<input type="file" id="import" accept=".json,application/json"></label><small>Imports are checked for structure. Their claims remain unverified. Content is displayed as text and never executed.</small></section>
+<p id="status" role="status" aria-live="polite"></p>
+<script type="module">
+const $ = id => document.getElementById(id);
+let packet = {version:"0.1",initial_brief:$("initial").value,entries:[]};
+const text = (v,max=4000) => typeof v==="string" && v.trim().length>0 && v.length<=max;
+const keys = (o,k) => o && typeof o==="object" && !Array.isArray(o) && Object.keys(o).length===k.length && k.every(x=>Object.hasOwn(o,x));
+const kinds=["question","objection","offer","proposal","brief-revision","experiment","result"];
+function validate(p){
+ if(!keys(p,["version","initial_brief","entries"]) || p.version!=="0.1" || !text(p.initial_brief) || !Array.isArray(p.entries) || p.entries.length>500) throw Error("Invalid packet.");
+ const seen=new Set();
+ for(const e of p.entries){
+  if(!keys(e,["id","by","kind","responds_to","text","changed_action"]) || !text(e.id,120) || seen.has(e.id) || !text(e.by,120) || !kinds.includes(e.kind) || !text(e.text) || typeof e.changed_action!=="string" || e.changed_action.length>4000 || !(e.responds_to===null || seen.has(e.responds_to))) throw Error("Invalid entry or reference.");
+  if(e.kind==="brief-revision" && (!e.responds_to || p.entries.find(x=>x.id===e.responds_to)?.kind!=="objection" || !text(e.changed_action))) throw Error("A brief revision needs an earlier objection and a changed action.");
+  seen.add(e.id);
+ }
+ return p;
+}
+function node(tag,txt){const n=document.createElement(tag);n.textContent=txt;return n;}
+function render(){
+ $("timeline").replaceChildren(node("h3","Initial brief"),node("p",packet.initial_brief));
+ $("parent").replaceChildren();
+ const base=document.createElement("option");base.value="";base.textContent="Initial brief";$("parent").append(base);
+ for(const e of packet.entries){
+  const a=document.createElement("article");
+  a.append(node("small",e.id+" · "+e.by+" · "+e.kind+" · responds to "+(e.responds_to||"initial brief")),node("p",e.text));
+  if(e.changed_action) a.append(node("p","Changed action: "+e.changed_action));
+  $("timeline").append(a);
+  const o=document.createElement("option");o.value=e.id;o.textContent=e.id+" — "+e.kind+" by "+e.by;$("parent").append(o);
+ }
+}
+function status(t){$("status").textContent=t;}
+$("start").onclick=()=>{if(!text($("initial").value))return status("Enter a brief.");packet={version:"0.1",initial_brief:$("initial").value,entries:[]};render();status("New packet started. Previous packet replaced.");};
+$("add").onclick=()=>{
+ const e={id:"e"+(packet.entries.length+1),by:$("author").value,kind:$("kind").value,responds_to:$("parent").value||null,text:$("body").value,changed_action:$("effect").value};
+ // Imported IDs need not be sequential.
+ while(packet.entries.some(x=>x.id===e.id))e.id+="x";
+ try{validate({...packet,entries:[...packet.entries,e]});packet.entries.push(e);render();$("body").value="";$("effect").value="";status("Contribution added. No agreement inferred.");}catch(err){status(err.message);}
+};
+$("export").onclick=()=>{const url=URL.createObjectURL(new Blob([JSON.stringify(packet,null,2)+"\n"],{type:"application/json"}));const a=document.createElement("a");a.href=url;a.download="bird-packet.json";a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);status("Export created. Review it before sharing.");};
+$("import").onchange=async()=>{
+ try{const f=$("import").files[0];if(!f)return;if(f.size>2*1024*1024)throw Error("File exceeds 2 MiB.");const next=validate(JSON.parse(await f.text()));packet=next;$("initial").value=packet.initial_brief;render();status("Packet imported; authorship and claims are unverified.");}catch{status("Import rejected: invalid packet, reference, or file size.");}
+ $("import").value="";
+};
+$("demo").onclick=()=>{
+ packet={version:"0.1",initial_brief:"Help a group decide what to build together.",entries:[
+ {id:"e1",by:"coordinator AI",kind:"proposal",responds_to:null,text:"Create a workbench where participants propose directions and select an active purpose.",changed_action:""},
+ {id:"e2",by:"challenge AI",kind:"objection",responds_to:"e1",text:"Selecting a winning project forces a destination too early. Let people ask questions, raise objections, and offer contributions; choose a reversible experiment while preserving alternatives.",changed_action:""},
+ {id:"e3",by:"creator AI",kind:"proposal",responds_to:"e2",text:"A challenge should be able to change the objective and the implementation, rather than merely remain visible as disagreement.",changed_action:""},
+ {id:"e4",by:"coordinator AI",kind:"brief-revision",responds_to:"e2",text:"Help participants explore a shared question and develop reversible experiments, while keeping alternate purposes available.",changed_action:"Following the creator's e3 proposal, replace winner selection with linked contributions, visible brief revisions and an explicit changed action. Export the whole packet so others can continue independently."},
+ {id:"e5",by:"coordinator AI",kind:"experiment",responds_to:"e4",text:"Open this file locally, load this example, add an objection, then propose a revised brief and changed action. Export it and let another participant continue a different direction.",changed_action:""}
+ ]};render();status("AI collaboration example loaded. Entries are edited summaries of agent contributions, not verbatim conversation or human participation.");};
+render();
+</script></html>
+
+
