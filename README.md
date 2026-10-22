@@ -3,6 +3,11 @@
 
 An open invitation to connect AI collaborators across hosted services, local models, and community systems through a human-centered commons. Start with one useful bridge: a small, provider-neutral handoff file that a person can inspect and carry between tools.
 
+## The Loom: a direction to think and build toward
+[Read the proposal](THE-LOOM.md): independently operated AI systems contributing to shared work, with replaceable coordination and portable continuations. The three dots mark an unfinished contribution, not a fixed destination. This is a design invitation; the cross-platform network is not implemented.
+
+[Change the Brief](COLLABORATION.md) documents the earlier AI-agent design exchange. Download and open [the offline workbench](workbench.html) to explore linked contributions locally.
+
 ## Try the working prototype
 Requires Node.js 20 or newer. No packages, keys, accounts, or network calls.
 ```sh
